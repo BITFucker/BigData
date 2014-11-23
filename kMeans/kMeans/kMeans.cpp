@@ -1,3 +1,13 @@
+/*
+* File Name: KMeans.cpp
+* Author: lucio bale
+* Date: 2014.11.23
+* Description: 
+	1.类内数据为欧拉距离
+	2.k值人工设定
+	3.初始聚类中心为数据集最前的dimen个数据
+	4.聚类中心为聚类的平均值
+*/
 #include <iostream>
 #include <fstream>
 #include <cmath>
@@ -8,14 +18,14 @@ using namespace std;
 struct Vector 
 {
 	double* coords; // 所有维度的数值
-	int     size;
+	int     size;   // 数据量
 	Vector() :  coords(0), size(0) {} 
 	Vector(int d) { create(d); }
 	// 创建维度为d的数据，并将各维度初始化为0
 	void create(int d)
 	{
 		size = d;
-		coords = new double[size];
+		coords = new double[size];//定义一个double型的指针，指向一块容量为size的double型变量的首地址
 		for (int i=0; i<size; i++)
 			coords[i] = 0.0;
 	}
@@ -45,7 +55,7 @@ struct Vector
 // 聚类结构
 struct Cluster 
 {
-	Vector center;    // 中心/引力数据对象
+	Vector center;    // 中心的数据
 	int*   member;    // 该聚类中各个数据的索引
 	int    memberNum; // 数据的数量
 };
@@ -94,11 +104,13 @@ public:
 	{
 		bool converged = false; // 是否收敛
 		passNum = 0;
-		while (!converged && passNum < 999)   // 如果没有收敛，则再次迭代
+		while (!converged && passNum < 1999)   // 如果没有收敛，则再次迭代
 			// 正常情况下总是会收敛，passNum < 999是防万一
 		{
-			distribute();                     // 将数据分配到聚中心最近的聚类
+			distribute();                     // 将所有数据分配到聚中心最近的聚类,为1次迭代
 			converged = recalculateCenters(); // 计算新的聚类中心，如果计算结果和上次相同，认为已经收敛
+			if( converged==true )
+				cout << "iterations= " << passNum << endl;
 			passNum++;
 		}
 	}
@@ -112,14 +124,15 @@ public:
 		{
 			Cluster& cluster = getCluster(closestCluster(i)); // 找出最接近的其中心的聚类
 			int memID = cluster.memberNum; // memberNum是当前记录的数据数量，也是新加入数据在member数组中的位置
-			cluster.member[memID] = i;     // 将数据索引加入Member数组
+			cluster.member[memID] = i;     // 将数据索引加入Member数组末尾，该索引为在observation数组中的位置
 			cluster.memberNum++;           // 聚类中的数据数量加1
 		}
 	}
+	//计算最近的聚类
 	int closestCluster(int id)
 	{
 		int clusterID = 0;               // 暂时假定索引为id的数据最接近第一个聚类
-		double minDist = eucNorm(id, 0); // 计算到第一个聚类中心的误差(本程序中用距离的平方和作为误差)
+		double minDist = eucNorm(id, 0); // 计算到第一个聚类中心的欧拉距离的平方
 		// 计算其它聚类中心到数据的误差，找出其中最小的一个
 		for (int k=1; k<clusterNum; k++) 
 		{
@@ -132,7 +145,7 @@ public:
 		}
 		return clusterID;
 	}
-	// 索引为id的数据到第k个聚类中心的误差(距离的平方)
+	// 索引为id的数据到第k个聚类中心的欧拉距离的平方
 	double eucNorm(int id, int k)
 	{
 		Vector& observ = observations[id];
@@ -195,6 +208,7 @@ void partitionObservations(istream& input)
 	// 文本文件中头三个数据分别是数据数量(n)、数据维度(dimen)和聚类数量(k)
 	input >> n >> dimen >> k;
 	// 创建存储数据的数值
+	cout << "n=" << n << ",dimen=" << dimen << ",k=" << k << endl;
 	Vector* obs = new Vector[n];
 	// 将数据读入数组
 	for (int i=0; i<n; i++)
@@ -209,6 +223,7 @@ void partitionObservations(istream& input)
 	// 建立KMeans算法类实例
 	KMeans kmeans(n, dimen, k, obs);
 	kmeans.initClusters(); // 初始化
+	cout << "calculating..." << endl;
 	kmeans.run();          // 执行算法 
 
 	// 输出聚类数据，如果希望输出到文件中，
@@ -221,20 +236,21 @@ void partitionObservations(istream& input)
 		output << "---- 第" << (c + 1) << "个聚类 ----\n"; // 显示第c个聚类
 		output << "聚类中心：";
 		printVector(output, cluster.center);
-		output << "\n";
-		for (int m=0; m<cluster.memberNum; m++)
+		output << "\n" << endl;
+	/*	for (int m=0; m<cluster.memberNum; m++)
 		{
 			int id = cluster.member[m];
 			printVector(output, obs[id]);
 			output << "\n";
 		}
 		output << endl;
+	*/
 	}
 	delete[] obs;
 }
 int main()
 {
-	const char* fileName = "E:/observations.txt";
+	const char* fileName = "C:/Users/lenovo/Desktop/data.txt";
 	ifstream obIn(fileName);
 	if (obIn.is_open())
 		partitionObservations(obIn);
